@@ -1,0 +1,7 @@
+# 构建产物
+build/
+AppIcon.iconset/
+*.app
+*.zip
+.DS_Store
+*.log
