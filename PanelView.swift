@@ -142,7 +142,7 @@ struct PanelView: View {
                 title: "国内金价 · 上海金交所",
                 subtitle: "人民币 / 克 · Au(T+D)" + (store.cnyPerGramTime.map { " · \($0)" } ?? ""),
                 value: store.cnyPerGram.map { String(format: "¥%.2f", $0) } ?? "--",
-                chg: nil,
+                chg: store.cnyChgPct,
                 accent: Color(red: 0.85, green: 0.55, blue: 0.10)
             )
 

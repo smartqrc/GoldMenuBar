@@ -21,6 +21,7 @@ final class PriceStore: ObservableObject {
     @Published var usdPerOz: Double?          // 纽约金 美元/盎司
     @Published var usdChgPct: Double?         // 纽约金日涨跌 %
     @Published var cnyPerGram: Double?        // 上海金 元/克
+    @Published var cnyChgPct: Double?         // 上海金日涨跌 %
     @Published var cnyPerGramTime: String?    // 国内行情时间
     @Published var nav: Double?               // 002963 官方净值 (T-1)
     @Published var navDate: String?           // 净值日期
@@ -89,13 +90,14 @@ final class PriceStore: ObservableObject {
         var fetchError: String?
 
         group.enter()
-        fetchSinaGold { usd, chg, cny, t, err in
+        fetchSinaGold { usd, chg, cny, cnyChg, t, err in
             if let usd = usd { self.usdPerOz = usd }
             if let chg = chg { self.usdChgPct = chg }
             if let cny = cny {
                 self.cnyPerGram = cny
                 self.cnyPerGramTime = t
             }
+            if let cnyChg = cnyChg { self.cnyChgPct = cnyChg }
             if usd == nil && cny == nil { fetchError = err ?? "新浪行情获取失败" }
             group.leave()
         }
@@ -169,13 +171,13 @@ final class PriceStore: ObservableObject {
     }
 
     // MARK: - 新浪行情（COMEX 纽约金 + 上海金交所 Au(T+D)）
-    private func fetchSinaGold(_ completion: @escaping (Double?, Double?, Double?, String?, String?) -> Void) {
+    private func fetchSinaGold(_ completion: @escaping (Double?, Double?, Double?, Double?, String?, String?) -> Void) {
         guard let url = URL(string: "https://hq.sinajs.cn/list=hf_GC,gds_AUTD") else { return }
         var req = URLRequest(url: url, timeoutInterval: 12)
         req.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
         req.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
         URLSession.shared.dataTask(with: req) { data, _, error in
-            var usd: Double?, chg: Double?, cny: Double?, t: String?
+            var usd: Double?, chg: Double?, cny: Double?, cnyChg: Double?, t: String?
             var err: String?
             if let error = error {
                 err = "网络错误: \(error.localizedDescription)"
@@ -200,12 +202,15 @@ final class PriceStore: ObservableObject {
                     if f.count > 12, let p = Double(f[0]) {
                         cny = p
                         t = f[12] // 日期
+                        if let prev = Double(f[7]), prev > 0 {
+                            cnyChg = (p - prev) / prev * 100
+                        }
                     }
                 }
             } else {
                 err = "新浪行情解析失败"
             }
-            DispatchQueue.main.async { completion(usd, chg, cny, t, err) }
+            DispatchQueue.main.async { completion(usd, chg, cny, cnyChg, t, err) }
         }.resume()
     }
 
