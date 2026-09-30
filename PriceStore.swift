@@ -18,7 +18,7 @@ struct AlertSetting: Codable {
 
 final class PriceStore: ObservableObject {
     // 三项核心数据
-    @Published var usdPerOz: Double?          // 纽约金 美元/盎司
+    @Published var usdPerOz: Double?          // 伦敦金（现货）美元/盎司
     @Published var usdChgPct: Double?         // 纽约金日涨跌 %
     @Published var cnyPerGram: Double?        // 上海金 元/克
     @Published var cnyChgPct: Double?         // 上海金日涨跌 %
@@ -170,9 +170,9 @@ final class PriceStore: ObservableObject {
         UNUserNotificationCenter.current().add(req)
     }
 
-    // MARK: - 新浪行情（COMEX 纽约金 + 上海金交所 Au(T+D)）
+    // MARK: - 新浪行情（伦敦金现 XAU + 上海金交所 Au(T+D)）
     private func fetchSinaGold(_ completion: @escaping (Double?, Double?, Double?, Double?, String?, String?) -> Void) {
-        guard let url = URL(string: "https://hq.sinajs.cn/list=hf_GC,gds_AUTD") else { return }
+        guard let url = URL(string: "https://hq.sinajs.cn/list=hf_XAU,gds_AUTD") else { return }
         var req = URLRequest(url: url, timeoutInterval: 12)
         req.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
         req.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
@@ -189,7 +189,7 @@ final class PriceStore: ObservableObject {
                     ?? String(data: data, encoding: .utf8)
                     ?? String(decoding: data, as: UTF8.self)
                 for line in raw.components(separatedBy: "\n") {
-                    guard let v = Self.sinaValue(line: line, key: "hf_GC") else { continue }
+                    guard let v = Self.sinaValue(line: line, key: "hf_XAU") else { continue }
                     let f = v.components(separatedBy: ",")
                     if f.count > 7, let last = Double(f[0]), let prev = Double(f[7]), prev > 0 {
                         usd = last

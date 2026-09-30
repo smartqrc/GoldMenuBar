@@ -130,8 +130,8 @@ struct PanelView: View {
 
             // 1. 国际金价
             PriceCard(
-                title: "国际金价 · COMEX",
-                subtitle: "美元 / 盎司 · 实时",
+                title: "国际金价 · 伦敦金现",
+                subtitle: "美元 / 盎司 · 现货黄金 · 实时",
                 value: store.usdPerOz.map { String(format: "$%.2f", $0) } ?? "--",
                 chg: store.usdChgPct,
                 accent: Color(red: 0.95, green: 0.72, blue: 0.20)
