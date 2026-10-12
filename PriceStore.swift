@@ -26,6 +26,9 @@ final class PriceStore: ObservableObject {
     @Published var nav: Double?               // 159934 场内实时价
     @Published var navDate: String?           // 行情时间
     @Published var navChgPct: Double?         // 日涨跌 %
+    @Published var histUsd: [Double] = []     // 近6小时走势（5分钟收盘）
+    @Published var histCny: [Double] = []     // 国内金：国际金走势 × 当前比价映射
+    @Published var histEtf: [Double] = []     // 近6小时走势
     @Published var lastUpdate: Date?
     @Published var loading = false
     @Published var errorText: String?
@@ -113,7 +116,62 @@ final class PriceStore: ObservableObject {
                 self.lastUpdate = Date()
             }
             self.checkAlerts()
+            self.fetchHistories()
         }
+    }
+
+    // MARK: - 近6小时历史曲线
+    func fetchHistories() {
+        fetchXauHistory { xs in
+            DispatchQueue.main.async {
+                guard let xs = xs else { return }
+                self.histUsd = xs
+                // SGE 无公开分钟级历史：按当前国际/国内比价映射国际金走势
+                if let u = self.usdPerOz, let c = self.cnyPerGram, u > 0 {
+                    self.histCny = xs.map { $0 * c / u }
+                }
+            }
+        }
+        fetchEtfHistory { ys in
+            DispatchQueue.main.async { if let ys = ys { self.histEtf = ys } }
+        }
+    }
+
+    /// 伦敦金现 5 分钟 K 线（GlobalService.getMinK 返回全部近期数据，取最后 72 根 = 6 小时）
+    private func fetchXauHistory(_ completion: @escaping ([Double]?) -> Void) {
+        guard let url = URL(string: "https://gu.sina.cn/ft/api/jsonp.php/var%20x=/GlobalService.getMinK?symbol=XAU&type=5") else { return }
+        var req = URLRequest(url: url, timeoutInterval: 12)
+        req.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            var result: [Double]?
+            if let data = data {
+                let raw = String(decoding: data, as: UTF8.self)
+                if let a = raw.range(of: "var x=("), let b = raw.range(of: ");", options: .backwards) {
+                    let jsonStr = String(raw[a.upperBound..<b.lowerBound])
+                    if let arr = try? JSONSerialization.jsonObject(with: Data(jsonStr.utf8)) as? [[String: Any]] {
+                        let closes = arr.compactMap { ($0["c"] as? String).flatMap { Double($0) } }
+                        result = closes.count > 72 ? Array(closes.suffix(72)) : closes
+                    }
+                }
+            }
+            DispatchQueue.main.async { completion(result) }
+        }.resume()
+    }
+
+    /// 159934 5 分钟 K 线（datalen=72 即 6 小时）
+    private func fetchEtfHistory(_ completion: @escaping ([Double]?) -> Void) {
+        guard let url = URL(string: "https://quotes.sina.cn/cn/api/json_v2.php/CN_MarketDataService.getKLineData?symbol=sz159934&scale=5&ma=no&datalen=72") else { return }
+        var req = URLRequest(url: url, timeoutInterval: 12)
+        req.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
+        URLSession.shared.dataTask(with: req) { data, _, _ in
+            var result: [Double]?
+            if let data = data,
+               let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                let closes = arr.compactMap { ($0["close"] as? String).flatMap { Double($0) } }
+                result = closes.count >= 2 ? closes : nil
+            }
+            DispatchQueue.main.async { completion(result) }
+        }.resume()
     }
 
     // MARK: - 价格预警检查

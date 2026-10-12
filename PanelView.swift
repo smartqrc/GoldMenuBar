@@ -3,6 +3,56 @@
 
 import SwiftUI
 
+/// 迷你走势曲线（近6小时，自动归一化）
+struct Sparkline: View {
+    let values: [Double]
+    let color: Color
+
+    var body: some View {
+        Group {
+            if values.count >= 2, let mn = values.min(), let mx = values.max() {
+                GeometryReader { g in
+                    ZStack {
+                        fillPath(in: g.size).fill(color.opacity(0.10))
+                        linePath(in: g.size).stroke(color.opacity(0.85), lineWidth: 1.5)
+                    }
+                }
+                .frame(height: 24)
+            }
+        }
+    }
+
+    private func points(in size: CGSize) -> [CGPoint] {
+        guard let mn = values.min(), let mx = values.max(), values.count >= 2 else { return [] }
+        let rng = max(mx - mn, abs(mx) * 0.0001, 0.0001)
+        let w = size.width, h = size.height
+        let yTop = CGFloat(2), yBot = h - 2
+        return values.enumerated().map { i, v in
+            let x = w * CGFloat(i) / CGFloat(values.count - 1)
+            let y = yBot - (yBot - yTop) * CGFloat((v - mn) / rng)
+            return CGPoint(x: x, y: y)
+        }
+    }
+
+    private func linePath(in size: CGSize) -> Path {
+        var p = Path()
+        let pts = points(in: size)
+        guard let first = pts.first else { return p }
+        p.move(to: first)
+        pts.dropFirst().forEach { p.addLine(to: $0) }
+        return p
+    }
+
+    private func fillPath(in size: CGSize) -> Path {
+        var p = linePath(in: size)
+        guard values.count >= 2 else { return p }
+        p.addLine(to: CGPoint(x: size.width, y: size.height))
+        p.addLine(to: CGPoint(x: 0, y: size.height))
+        p.closeSubpath()
+        return p
+    }
+}
+
 /// 价格预警行：红点状态 + 名称 + 方向切换 + 目标价 + 开关
 struct AlertRow: View {
     let label: String
@@ -60,6 +110,7 @@ struct PriceCard: View {
     let value: String
     let chg: Double?
     let accent: Color
+    var history: [Double] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -79,6 +130,7 @@ struct PriceCard: View {
             Text(value)
                 .font(.system(size: 25, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundColor(.primary)
+            Sparkline(values: history, color: chgColor(chg))
             Text(subtitle).font(.system(size: 10.5))
                 .foregroundColor(.secondary)
         }
@@ -134,7 +186,8 @@ struct PanelView: View {
                 subtitle: "美元 / 盎司 · 现货黄金 · 实时",
                 value: store.usdPerOz.map { String(format: "$%.2f", $0) } ?? "--",
                 chg: store.usdChgPct,
-                accent: Color(red: 0.95, green: 0.72, blue: 0.20)
+                accent: Color(red: 0.95, green: 0.72, blue: 0.20),
+                history: store.histUsd
             )
 
             // 2. 国内金价
@@ -143,7 +196,8 @@ struct PanelView: View {
                 subtitle: "人民币 / 克 · Au(T+D)" + (store.cnyPerGramTime.map { " · \($0)" } ?? ""),
                 value: store.cnyPerGram.map { String(format: "¥%.2f", $0) } ?? "--",
                 chg: store.cnyChgPct,
-                accent: Color(red: 0.85, green: 0.55, blue: 0.10)
+                accent: Color(red: 0.85, green: 0.55, blue: 0.10),
+                history: store.histCny
             )
 
             // 3. 黄金ETF 实时价
@@ -152,7 +206,8 @@ struct PanelView: View {
                 subtitle: "场内实时价格" + (store.navDate.map { " · \($0)" } ?? ""),
                 value: store.nav.map { String(format: "¥%.3f", $0) } ?? "--",
                 chg: store.navChgPct,
-                accent: Color(red: 0.55, green: 0.40, blue: 0.95)
+                accent: Color(red: 0.55, green: 0.40, blue: 0.95),
+                history: store.histEtf
             )
 
 
@@ -230,7 +285,8 @@ struct PanelView: View {
             // 底部
             HStack {
                 if let t = store.lastUpdate {
-                    Text("更新于 " + Self.fmt(t)).font(.system(size: 10)).foregroundColor(.secondary)
+                    Text("更新于 " + Self.fmt(t) + " · 曲线为近6小时（国内金按国际金映射）")
+                        .font(.system(size: 10)).foregroundColor(.secondary)
                 } else if store.loading {
                     Text("获取中…").font(.system(size: 10)).foregroundColor(.secondary)
                 }

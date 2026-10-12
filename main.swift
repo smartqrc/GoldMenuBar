@@ -61,24 +61,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size, flipped: false) { _ in
             let path = NSBezierPath()
-            // 顶沿：左角尖 → 内凹 → 中间圆鼓 → 内凹 → 右角尖
-            path.move(to: NSPoint(x: 1.8, y: 10.6))                       // 左角尖（最高点）
-            path.curve(to: NSPoint(x: 6.2, y: 8.2),
-                       controlPoint1: NSPoint(x: 3.4, y: 8.6),
-                       controlPoint2: NSPoint(x: 4.8, y: 8.2))            // 左肩内凹
-            path.curve(to: NSPoint(x: 11.8, y: 8.2),
-                       controlPoint1: NSPoint(x: 7.2, y: 9.8),
-                       controlPoint2: NSPoint(x: 10.8, y: 9.8))           // 中央圆鼓
-            path.curve(to: NSPoint(x: 16.2, y: 10.6),
-                       controlPoint1: NSPoint(x: 13.2, y: 8.2),
-                       controlPoint2: NSPoint(x: 14.6, y: 8.6))           // 右肩内凹 → 右角尖
-            // 底沿：从右角尖沿船底弧线收回左角尖
-            path.curve(to: NSPoint(x: 9.0, y: 4.6),
-                       controlPoint1: NSPoint(x: 15.4, y: 7.0),
-                       controlPoint2: NSPoint(x: 12.6, y: 4.8))
-            path.curve(to: NSPoint(x: 1.8, y: 10.6),
-                       controlPoint1: NSPoint(x: 5.4, y: 4.8),
-                       controlPoint2: NSPoint(x: 2.6, y: 7.0))
+            // 顶沿：左角圆润上翘 → 内凹 → 中央圆鼓 → 内凹 → 右角
+            path.move(to: NSPoint(x: 2.2, y: 10.0))
+            path.curve(to: NSPoint(x: 6.4, y: 7.9),
+                       controlPoint1: NSPoint(x: 3.4, y: 9.9),
+                       controlPoint2: NSPoint(x: 4.7, y: 8.4))
+            path.curve(to: NSPoint(x: 11.6, y: 7.9),
+                       controlPoint1: NSPoint(x: 7.6, y: 9.6),
+                       controlPoint2: NSPoint(x: 10.4, y: 9.6))
+            path.curve(to: NSPoint(x: 15.8, y: 10.0),
+                       controlPoint1: NSPoint(x: 13.3, y: 8.4),
+                       controlPoint2: NSPoint(x: 14.6, y: 9.9))
+            // 底沿：饱满圆肚船底
+            path.curve(to: NSPoint(x: 9.0, y: 4.2),
+                       controlPoint1: NSPoint(x: 15.3, y: 6.6),
+                       controlPoint2: NSPoint(x: 12.6, y: 4.2))
+            path.curve(to: NSPoint(x: 2.2, y: 10.0),
+                       controlPoint1: NSPoint(x: 5.4, y: 4.2),
+                       controlPoint2: NSPoint(x: 2.7, y: 6.6))
             path.close()
             NSColor.black.setFill()
             path.fill()
