@@ -56,17 +56,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 菜单栏图标：白色单色元宝（模板模式，自动适配菜单栏深浅色）
+    /// 造型：两侧翘角 + 中间圆鼓肚 + 上沿内凹的元宝剪影
     private static func goldIngotIcon(alert: Bool) -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size, flipped: false) { _ in
-            // 中式元宝剪影：两侧翘角 + 中央鼓肚
             let path = NSBezierPath()
-            path.move(to: NSPoint(x: 2.0, y: 7.5))
-            path.curve(to: NSPoint(x: 6.0, y: 6.2), controlPoint1: NSPoint(x: 3.0, y: 5.6), controlPoint2: NSPoint(x: 4.5, y: 5.6))
-            path.curve(to: NSPoint(x: 12.0, y: 6.2), controlPoint1: NSPoint(x: 7.2, y: 4.6), controlPoint2: NSPoint(x: 10.8, y: 4.6))
-            path.curve(to: NSPoint(x: 16.0, y: 7.5), controlPoint1: NSPoint(x: 13.5, y: 5.6), controlPoint2: NSPoint(x: 15.0, y: 5.6))
-            path.curve(to: NSPoint(x: 9.0, y: 10.6), controlPoint1: NSPoint(x: 14.6, y: 10.4), controlPoint2: NSPoint(x: 11.8, y: 10.8))
-            path.curve(to: NSPoint(x: 2.0, y: 7.5), controlPoint1: NSPoint(x: 6.2, y: 10.8), controlPoint2: NSPoint(x: 3.4, y: 10.4))
+            // 顶沿：左角尖 → 内凹 → 中间圆鼓 → 内凹 → 右角尖
+            path.move(to: NSPoint(x: 1.8, y: 10.6))                       // 左角尖（最高点）
+            path.curve(to: NSPoint(x: 6.2, y: 8.2),
+                       controlPoint1: NSPoint(x: 3.4, y: 8.6),
+                       controlPoint2: NSPoint(x: 4.8, y: 8.2))            // 左肩内凹
+            path.curve(to: NSPoint(x: 11.8, y: 8.2),
+                       controlPoint1: NSPoint(x: 7.2, y: 9.8),
+                       controlPoint2: NSPoint(x: 10.8, y: 9.8))           // 中央圆鼓
+            path.curve(to: NSPoint(x: 16.2, y: 10.6),
+                       controlPoint1: NSPoint(x: 13.2, y: 8.2),
+                       controlPoint2: NSPoint(x: 14.6, y: 8.6))           // 右肩内凹 → 右角尖
+            // 底沿：从右角尖沿船底弧线收回左角尖
+            path.curve(to: NSPoint(x: 9.0, y: 4.6),
+                       controlPoint1: NSPoint(x: 15.4, y: 7.0),
+                       controlPoint2: NSPoint(x: 12.6, y: 4.8))
+            path.curve(to: NSPoint(x: 1.8, y: 10.6),
+                       controlPoint1: NSPoint(x: 5.4, y: 4.8),
+                       controlPoint2: NSPoint(x: 2.6, y: 7.0))
             path.close()
             NSColor.black.setFill()
             path.fill()

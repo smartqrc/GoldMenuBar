@@ -146,26 +146,15 @@ struct PanelView: View {
                 accent: Color(red: 0.85, green: 0.55, blue: 0.10)
             )
 
-            // 3. ETF 净值
+            // 3. 黄金ETF 实时价
             PriceCard(
-                title: "易方达黄金ETF联接C · 002963",
-                subtitle: "官方净值" + (store.navDate.map { " · \($0)" } ?? "（T-1 更新）"),
-                value: store.nav.map { String(format: "¥%.4f", $0) } ?? "--",
+                title: "易方达黄金ETF · 159934",
+                subtitle: "场内实时价格" + (store.navDate.map { " · \($0)" } ?? ""),
+                value: store.nav.map { String(format: "¥%.3f", $0) } ?? "--",
                 chg: store.navChgPct,
                 accent: Color(red: 0.55, green: 0.40, blue: 0.95)
             )
 
-            // 盘中估算
-            if let est = store.estNav {
-                HStack {
-                    Text("盘中估算净值").font(.system(size: 11)).foregroundColor(.secondary)
-                    Spacer()
-                    Text(String(format: "%.4f", est))
-                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 6)
-            }
 
             Divider()
 
@@ -209,12 +198,12 @@ struct PanelView: View {
                 }
                 HStack(spacing: 8) {
                     TextField("持有份额", text: $store.sharesText)
-                    TextField("成本净值", text: $store.costText)
+                    TextField("成本价", text: $store.costText)
                 }
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .font(.system(size: 12).monospacedDigit())
                 HStack {
-                    Text("收益 = (最新净值 − 成本) × 份额 · 数据保存在本机")
+                    Text("收益 = (最新价 − 成本) × 份额 · 数据保存在本机")
                         .font(.system(size: 9.5)).foregroundColor(.secondary)
                     Spacer()
                     Button(action: saveHoldings) {

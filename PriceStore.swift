@@ -23,10 +23,9 @@ final class PriceStore: ObservableObject {
     @Published var cnyPerGram: Double?        // 上海金 元/克
     @Published var cnyChgPct: Double?         // 上海金日涨跌 %
     @Published var cnyPerGramTime: String?    // 国内行情时间
-    @Published var nav: Double?               // 002963 官方净值 (T-1)
-    @Published var navDate: String?           // 净值日期
-    @Published var navChgPct: Double?         // 净值日涨跌 %
-    @Published var estNav: Double?            // 盘中估算净值
+    @Published var nav: Double?               // 159934 场内实时价
+    @Published var navDate: String?           // 行情时间
+    @Published var navChgPct: Double?         // 日涨跌 %
     @Published var lastUpdate: Date?
     @Published var loading = false
     @Published var errorText: String?
@@ -90,7 +89,7 @@ final class PriceStore: ObservableObject {
         var fetchError: String?
 
         group.enter()
-        fetchSinaGold { usd, chg, cny, cnyChg, t, err in
+        fetchSinaGold { usd, chg, cny, cnyChg, etf, etfChg, etfT, t, err in
             if let usd = usd { self.usdPerOz = usd }
             if let chg = chg { self.usdChgPct = chg }
             if let cny = cny {
@@ -98,28 +97,16 @@ final class PriceStore: ObservableObject {
                 self.cnyPerGramTime = t
             }
             if let cnyChg = cnyChg { self.cnyChgPct = cnyChg }
-            if usd == nil && cny == nil { fetchError = err ?? "新浪行情获取失败" }
-            group.leave()
-        }
-
-        group.enter()
-        fetchFundNAV { nav, date, chg, err in
-            if let nav = nav { self.nav = nav }
-            if let date = date { self.navDate = date }
-            if let chg = chg { self.navChgPct = chg }
-            if nav == nil { fetchError = (fetchError.map { $0 + "；" } ?? "") + (err ?? "基金净值获取失败") }
+            if let etf = etf { self.nav = etf }
+            if let etfChg = etfChg { self.navChgPct = etfChg }
+            if let etfT = etfT { self.navDate = etfT }
+            if usd == nil && cny == nil && etf == nil { fetchError = err ?? "新浪行情获取失败" }
             group.leave()
         }
 
         group.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
             self.loading = false
-            // 盘中估算净值：官方净值 × (1 + 纽约金日内涨跌幅)
-            if let n = self.nav, let chg = self.usdChgPct {
-                self.estNav = n * (1 + chg / 100)
-            } else {
-                self.estNav = nil
-            }
             if fetchError != nil && self.usdPerOz == nil && self.nav == nil {
                 self.errorText = fetchError
             } else {
@@ -171,13 +158,13 @@ final class PriceStore: ObservableObject {
     }
 
     // MARK: - 新浪行情（伦敦金现 XAU + 上海金交所 Au(T+D)）
-    private func fetchSinaGold(_ completion: @escaping (Double?, Double?, Double?, Double?, String?, String?) -> Void) {
-        guard let url = URL(string: "https://hq.sinajs.cn/list=hf_XAU,gds_AUTD") else { return }
+    private func fetchSinaGold(_ completion: @escaping (Double?, Double?, Double?, Double?, Double?, Double?, String?, String?, String?) -> Void) {
+        guard let url = URL(string: "https://hq.sinajs.cn/list=hf_XAU,gds_AUTD,sz159934") else { return }
         var req = URLRequest(url: url, timeoutInterval: 12)
         req.setValue("https://finance.sina.com.cn", forHTTPHeaderField: "Referer")
         req.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
         URLSession.shared.dataTask(with: req) { data, _, error in
-            var usd: Double?, chg: Double?, cny: Double?, cnyChg: Double?, t: String?
+            var usd: Double?, chg: Double?, cny: Double?, cnyChg: Double?, etf: Double?, etfChg: Double?, etfT: String?, t: String?
             var err: String?
             if let error = error {
                 err = "网络错误: \(error.localizedDescription)"
@@ -197,6 +184,15 @@ final class PriceStore: ObservableObject {
                     }
                 }
                 for line in raw.components(separatedBy: "\n") {
+                    guard let v = Self.sinaValue(line: line, key: "sz159934") else { continue }
+                    let f = v.components(separatedBy: ",")
+                    if f.count > 31, let last = Double(f[3]), let prev = Double(f[2]), prev > 0 {
+                        etf = last
+                        etfChg = (last - prev) / prev * 100
+                        etfT = f[31] // 行情时间 HH:mm:ss
+                    }
+                }
+                for line in raw.components(separatedBy: "\n") {
                     guard let v = Self.sinaValue(line: line, key: "gds_AUTD") else { continue }
                     let f = v.components(separatedBy: ",")
                     if f.count > 12, let p = Double(f[0]) {
@@ -210,7 +206,7 @@ final class PriceStore: ObservableObject {
             } else {
                 err = "新浪行情解析失败"
             }
-            DispatchQueue.main.async { completion(usd, chg, cny, cnyChg, t, err) }
+            DispatchQueue.main.async { completion(usd, chg, cny, cnyChg, etf, etfChg, etfT, t, err) }
         }.resume()
     }
 
@@ -221,28 +217,4 @@ final class PriceStore: ObservableObject {
         return String(s[..<end.lowerBound])
     }
 
-    // MARK: - 天天基金 002963 官方净值
-    private func fetchFundNAV(_ completion: @escaping (Double?, String?, Double?, String?) -> Void) {
-        guard let url = URL(string: "https://api.fund.eastmoney.com/f10/lsjz?fundCode=002963&pageIndex=1&pageSize=2") else { return }
-        var req = URLRequest(url: url, timeoutInterval: 12)
-        req.setValue("https://fundf10.eastmoney.com/jjjz_002963.html", forHTTPHeaderField: "Referer")
-        req.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
-        URLSession.shared.dataTask(with: req) { data, _, error in
-            var nav: Double?, date: String?, chg: Double?
-            var err: String?
-            if let error = error {
-                err = "网络错误: \(error.localizedDescription)"
-            } else if let data = data,
-                      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let list = (obj["Data"] as? [String: Any])?["LSJZList"] as? [[String: Any]],
-                      let first = list.first {
-                date = first["FSRQ"] as? String
-                nav = Double(first["DWJZ"] as? String ?? "")
-                chg = Double(first["JZZZL"] as? String ?? "")
-            } else {
-                err = "基金净值解析失败"
-            }
-            DispatchQueue.main.async { completion(nav, date, chg, err) }
-        }.resume()
-    }
 }
