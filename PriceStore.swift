@@ -29,6 +29,8 @@ final class PriceStore: ObservableObject {
     @Published var histUsd: [Double] = []     // 近6小时走势（5分钟收盘）
     @Published var histCny: [Double] = []     // 国内金：国际金走势 × 当前比价映射
     @Published var histEtf: [Double] = []     // 近6小时走势
+    @Published var fundNav: Double?           // 002963 官方净值 (T-1)，用于持仓收益计算
+    @Published var fundNavDate: String?       // 净值日期
     @Published var lastUpdate: Date?
     @Published var loading = false
     @Published var errorText: String?
@@ -68,13 +70,13 @@ final class PriceStore: ObservableObject {
     var shares: Double? { Double(sharesText.replacingOccurrences(of: ",", with: "")) }
     var cost: Double? { Double(costText.replacingOccurrences(of: ",", with: "")) }
 
-    /// 持仓收益
+    /// 持仓收益（按 002963 官方净值口径计算）
     var profit: Double? {
-        guard let s = shares, let c = cost, let n = nav else { return nil }
+        guard let s = shares, let c = cost, let n = fundNav else { return nil }
         return (n - c) * s
     }
     var profitPct: Double? {
-        guard let c = cost, c > 0, let n = nav else { return nil }
+        guard let c = cost, c > 0, let n = fundNav else { return nil }
         return (n - c) / c * 100
     }
 
@@ -107,6 +109,13 @@ final class PriceStore: ObservableObject {
             group.leave()
         }
 
+        group.enter()
+        fetchFundNAV { nav, date, err in
+            if let nav = nav { self.fundNav = nav }
+            if let date = date { self.fundNavDate = date }
+            group.leave()
+        }
+
         group.notify(queue: .main) { [weak self] in
             guard let self = self else { return }
             self.loading = false
@@ -118,6 +127,30 @@ final class PriceStore: ObservableObject {
             self.checkAlerts()
             self.fetchHistories()
         }
+    }
+
+    // MARK: - 天天基金 002963 官方净值（持仓收益计算基准）
+    private func fetchFundNAV(_ completion: @escaping (Double?, String?, String?) -> Void) {
+        guard let url = URL(string: "https://api.fund.eastmoney.com/f10/lsjz?fundCode=002963&pageIndex=1&pageSize=2") else { return }
+        var req = URLRequest(url: url, timeoutInterval: 12)
+        req.setValue("https://fundf10.eastmoney.com/jjjz_002963.html", forHTTPHeaderField: "Referer")
+        req.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: req) { data, _, error in
+            var nav: Double?, date: String?
+            var err: String?
+            if let error = error {
+                err = "网络错误: \(error.localizedDescription)"
+            } else if let data = data,
+                      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let list = (obj["Data"] as? [String: Any])?["LSJZList"] as? [[String: Any]],
+                      let first = list.first {
+                date = first["FSRQ"] as? String
+                nav = Double(first["DWJZ"] as? String ?? "")
+            } else {
+                err = "基金净值解析失败"
+            }
+            DispatchQueue.main.async { completion(nav, date, err) }
+        }.resume()
     }
 
     // MARK: - 近6小时历史曲线

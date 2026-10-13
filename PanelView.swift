@@ -258,7 +258,10 @@ struct PanelView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .font(.system(size: 12).monospacedDigit())
                 HStack {
-                    Text("收益 = (最新价 − 成本) × 份额 · 数据保存在本机")
+                    HStack(spacing: 3) {
+                        Text("收益 = (002963 净值" + (store.fundNavDate.map { " \($0)" } ?? "") + " − 成本) × 份额 · 本机保存")
+                            .font(.system(size: 9.5)).foregroundColor(.secondary)
+                    }
                         .font(.system(size: 9.5)).foregroundColor(.secondary)
                     Spacer()
                     Button(action: saveHoldings) {
