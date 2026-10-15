@@ -196,8 +196,7 @@ struct PanelView: View {
                 subtitle: "人民币 / 克 · Au(T+D)" + (store.cnyPerGramTime.map { " · \($0)" } ?? ""),
                 value: store.cnyPerGram.map { String(format: "¥%.2f", $0) } ?? "--",
                 chg: store.cnyChgPct,
-                accent: Color(red: 0.85, green: 0.55, blue: 0.10),
-                history: store.histCny
+                accent: Color(red: 0.85, green: 0.55, blue: 0.10)
             )
 
             // 3. 黄金ETF 实时价
@@ -288,7 +287,7 @@ struct PanelView: View {
             // 底部
             HStack {
                 if let t = store.lastUpdate {
-                    Text("更新于 " + Self.fmt(t) + " · 曲线为近6小时（国内金按国际金映射）")
+                    Text("更新于 " + Self.fmt(t) + " · 曲线为近6小时走势")
                         .font(.system(size: 10)).foregroundColor(.secondary)
                 } else if store.loading {
                     Text("获取中…").font(.system(size: 10)).foregroundColor(.secondary)
