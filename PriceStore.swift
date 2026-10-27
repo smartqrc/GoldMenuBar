@@ -31,6 +31,7 @@ final class PriceStore: ObservableObject {
     @Published var histEtf: [Double] = []     // 近6小时走势
     @Published var fundNav: Double?           // 002963 官方净值 (T-1)，用于持仓收益计算
     @Published var fundNavDate: String?       // 净值日期
+    @Published var fundNavChgPct: Double?     // 净值日涨跌 %
     @Published var lastUpdate: Date?
     @Published var loading = false
     @Published var errorText: String?
@@ -110,9 +111,10 @@ final class PriceStore: ObservableObject {
         }
 
         group.enter()
-        fetchFundNAV { nav, date, err in
+        fetchFundNAV { nav, date, chg, err in
             if let nav = nav { self.fundNav = nav }
             if let date = date { self.fundNavDate = date }
+            if let chg = chg { self.fundNavChgPct = chg }
             group.leave()
         }
 
@@ -130,13 +132,13 @@ final class PriceStore: ObservableObject {
     }
 
     // MARK: - 天天基金 002963 官方净值（持仓收益计算基准）
-    private func fetchFundNAV(_ completion: @escaping (Double?, String?, String?) -> Void) {
+    private func fetchFundNAV(_ completion: @escaping (Double?, String?, Double?, String?) -> Void) {
         guard let url = URL(string: "https://api.fund.eastmoney.com/f10/lsjz?fundCode=002963&pageIndex=1&pageSize=2") else { return }
         var req = URLRequest(url: url, timeoutInterval: 12)
         req.setValue("https://fundf10.eastmoney.com/jjjz_002963.html", forHTTPHeaderField: "Referer")
         req.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
         URLSession.shared.dataTask(with: req) { data, _, error in
-            var nav: Double?, date: String?
+            var nav: Double?, date: String?, chg: Double?
             var err: String?
             if let error = error {
                 err = "网络错误: \(error.localizedDescription)"
@@ -146,10 +148,11 @@ final class PriceStore: ObservableObject {
                       let first = list.first {
                 date = first["FSRQ"] as? String
                 nav = Double(first["DWJZ"] as? String ?? "")
+                chg = Double(first["JZZZL"] as? String ?? "")
             } else {
                 err = "基金净值解析失败"
             }
-            DispatchQueue.main.async { completion(nav, date, err) }
+            DispatchQueue.main.async { completion(nav, date, chg, err) }
         }.resume()
     }
 

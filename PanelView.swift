@@ -209,17 +209,15 @@ struct PanelView: View {
                 history: store.histEtf
             )
 
-            // 002963 联接C 官方净值（T-1）
-            if let fn = store.fundNav {
-                HStack {
-                    Text("002963 联接C 净值" + (store.fundNavDate.map { " · \($0)" } ?? ""))
-                        .font(.system(size: 11)).foregroundColor(.secondary)
-                    Spacer()
-                    Text(String(format: "%.4f", fn))
-                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 6)
+            // 002963 联接C 官方净值（T-1，无曲线）
+            if store.fundNav != nil {
+                PriceCard(
+                    title: "易方达黄金ETF联接C · 002963",
+                    subtitle: "官方净值" + (store.fundNavDate.map { " · \($0)" } ?? "") + " · T-1",
+                    value: store.fundNav.map { String(format: "¥%.4f", $0) } ?? "--",
+                    chg: store.fundNavChgPct,
+                    accent: Color(red: 0.95, green: 0.45, blue: 0.30)
+                )
             }
 
 
