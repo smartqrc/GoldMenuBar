@@ -209,6 +209,19 @@ struct PanelView: View {
                 history: store.histEtf
             )
 
+            // 002963 联接C 官方净值（T-1）
+            if let fn = store.fundNav {
+                HStack {
+                    Text("002963 联接C 净值" + (store.fundNavDate.map { " · \($0)" } ?? ""))
+                        .font(.system(size: 11)).foregroundColor(.secondary)
+                    Spacer()
+                    Text(String(format: "%.4f", fn))
+                        .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 6)
+            }
+
 
             Divider()
 
